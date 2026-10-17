@@ -1,0 +1,18 @@
+# Files and folders Git should NOT upload to GitHub.
+
+# The virtual environment (large, and rebuilt from requirements.txt anyway)
+.venv/
+
+# Python's automatic cache files
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Editor settings
+.vscode/
+
+# Scratch work you don't want published
+scratch/
+
+# NOTE: results/ is deliberately NOT ignored. The tables and plots in it
+# are the evidence of each stage, so they belong on GitHub.
