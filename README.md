@@ -61,6 +61,18 @@ Detailed notes for each stage are in `STAGEn_GUIDE.md`, and a dated log is in [`
 - RK4 with h = 0.2 gives y(2) ≈ 5.3053630, matching the published textbook value, an independent cross-check.
 - **A single number is weak evidence; the order of accuracy is strong evidence.** An RK4 with two weights swapped still produces a plausible answer (error ≈ 3×10⁻³), but its observed order collapses from 4 to 1. The convergence study catches this immediately. That is exactly the kind of error to look for when grading AI-written simulation code.
 
+### First evaluation: grading an AI answer
+
+Using the verified solver, I checked an AI-style response claiming that RK4 with h = 0.5 gives y(2) accurate to five decimals and that halving h cuts the error by 4.
+
+| Claim | Verified |
+|---|---|
+| y(2) ≈ 5.30547 | RK4 gives **5.30161** (5.30547 is the *exact* value) |
+| Accurate to 5 decimals | Error 3.9 × 10⁻³, only **2** decimals |
+| Halving h divides error by 4 | Measured **14.75**; theory 2⁴ = **16** |
+
+**Verdict: incorrect, three errors**, including a *fabricated agreement* (the response compared the exact value with itself). Full analysis and written critique: [`evaluations/stage1_rk4_step_size_review.md`](evaluations/stage1_rk4_step_size_review.md).
+
 ---
 
 ## How to reproduce
@@ -86,6 +98,8 @@ simulation-verification-lab/
 │   └── problems.py          # test problems with exact solutions
 ├── results/
 │   └── stage1/              # table and plot produced by run_stage1.py
+├── evaluations/             # graded reviews of AI-style answers
+│   └── stage1_rk4_step_size_review.md
 ├── run_stage1.py            # Stage 1 convergence study with self-check
 ├── STAGE1_GUIDE.md          # step-by-step guide, maths and Python explained
 ├── PROGRESS.md              # dated progress log

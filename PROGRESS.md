@@ -17,6 +17,9 @@ A dated record of what was built, what was verified, and what was learned at eac
 - RK4 at h = 0.2 gives y(2) ≈ 5.3053630, matching the textbook value.
 - Invalid input (0 steps) raises a clear `ValueError`.
 
+**Evaluated**
+- First graded review of an AI-style answer: [`evaluations/stage1_rk4_step_size_review.md`](evaluations/stage1_rk4_step_size_review.md). Verdict: incorrect, 3 errors (wrong value, false accuracy claim from a fabricated agreement, wrong scaling factor 4 instead of 16). Every claim checked by recomputing with the verified solver.
+
 **Learned**
 - A plausible single answer is not evidence of correct code. An RK4 with swapped weights gives error ≈ 3×10⁻³ (looks fine) but converges at order 1, not 4. The convergence rate exposed it.
 - Errors at the coarsest grids do not yet show the theoretical order (Euler 0.86 at first); judge the order on the finer grids.
