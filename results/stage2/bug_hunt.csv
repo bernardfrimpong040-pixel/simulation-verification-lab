@@ -1,0 +1,8 @@
+case,method,is_correct_code,tests_failed,check_kinds_that_failed,tests_behaved_correctly
+rk4_swapped_weights,rk4,False,5,B. Special case; C. Known answer; D. Accuracy; E. Order; F. SciPy reference,True
+rk4_wrong_stage_time,rk4,False,5,B. Special case; C. Known answer; D. Accuracy; E. Order; F. SciPy reference,True
+rk4_no_input_checks,rk4,False,4,G. Bad input,True
+euler_off_by_one,euler,False,5,B. Special case; C. Known answer; D. Accuracy; E. Order; F. SciPy reference,True
+euler_fixed_step,euler,False,4,B. Special case; D. Accuracy; E. Order; F. SciPy reference,True
+euler_wrong_slope_time,euler,False,2,C. Known answer; D. Accuracy,True
+rk4_alternative_correct,rk4,True,0,,True

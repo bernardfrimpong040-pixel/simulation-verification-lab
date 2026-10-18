@@ -27,8 +27,8 @@ Every stage follows the same professional cycle:
 | Stage | What is built | Skill demonstrated | Status |
 |---|---|---|---|
 | 1 | Reference ODE solvers (Euler, RK4) with a convergence study against an exact solution | Building and verifying a reference solution | ✅ Done |
-| 2 | Automatic tests with `pytest`: exact solution, order of accuracy, invalid inputs, plus deliberately buggy solvers the tests must catch | Writing checks that separate correct from flawed work | ⏳ Next |
-| 3 | Stiff problems and stability: a problem where the "obvious" method gives a confident wrong answer; written as a problem statement, reference answer and grading rubric | Designing problems that expose shallow reasoning | |
+| 2 | Automatic tests with `pytest` (7 kinds of check, 24 tests), plus deliberately buggy solvers the tests must catch and a correct alternative they must pass | Writing checks that separate correct from flawed work | ✅ Done |
+| 3 | Stiff problems and stability: a problem where the "obvious" method gives a confident wrong answer; written as a problem statement, reference answer and grading rubric | Designing problems that expose shallow reasoning | ⏳ Next |
 | 4 | Grading AI responses: real chatbot answers to Stages 1–3 problems, run against the tests, scored with the rubric, with written critiques | Evaluating AI-generated technical work | |
 | 5 | Monte Carlo simulation and statistical inference: confidence intervals with coverage checks, A/B-test power by simulation | Statistical inference and experiment design | |
 | 6 | Regression and time-series forecasting: honest validation, leakage traps, error metrics | Predictive modelling and forecasting | |
@@ -75,6 +75,44 @@ Using the verified solver, I checked an AI-style response claiming that RK4 with
 
 ---
 
+## Stage 2 result: tests that catch flawed work and pass correct work
+
+A test suite is only trustworthy if it **fails on wrong code** *and* **passes correct code written differently**. Stage 2 checks both.
+
+**The suite** (`tests/test_ode_solvers.py`, 24 tests) uses seven kinds of check:
+
+| | Kind of check | Example |
+|---|---|---|
+| A | Contract | n_steps + 1 points, starts at (t₀, y₀), ends at t_end, no inf/nan |
+| B | Special case | Euler exact for y′ = 3; RK4 exact for y′ = 4t³ (it reduces to Simpson's rule) |
+| C | Known answer | y(2) with h = 0.2 matches Burden & Faires to 7 decimals |
+| D | Accuracy | error below tolerance on a 320-step grid |
+| E | Order | observed order within 0.1 of theory (1 and 4) |
+| F | Independent reference | agrees with SciPy's 8th-order DOP853 on y′ = cos(ty), which has no closed form |
+| G | Bad input | zero, negative or fractional steps and empty or backwards intervals raise `ValueError` |
+
+**The bug hunt** (`run_stage2_bug_hunt.py`) swaps six realistic planted bugs into the same tests, plus one correct RK4 written in a different style:
+
+| Case | What is wrong | A | B | C | D | E | F | G | Verdict |
+|---|---|---|---|---|---|---|---|---|---|
+| `rk4_swapped_weights` | weights (1,2,1,2) instead of (1,2,2,1) | · | ✗ | ✗ | ✗ | ✗ | ✗ | · | caught |
+| `rk4_wrong_stage_time` | k2 evaluated at t+h instead of t+h/2 | · | ✗ | ✗ | ✗ | ✗ | ✗ | · | caught |
+| `rk4_no_input_checks` | input validation removed | · | · | · | · | · | · | ✗ | caught |
+| `euler_off_by_one` | loop stops one step early | · | ✗ | ✗ | ✗ | ✗ | ✗ | · | caught |
+| `euler_fixed_step` | step size hard-coded to 0.2 | · | ✗ | · | ✗ | ✗ | ✗ | · | caught |
+| `euler_wrong_slope_time` | slope taken at t_{i+1} instead of t_i | · | · | ✗ | ✗ | · | · | · | caught |
+| `rk4_alternative_correct` | *correct* RK4, different style | · | · | · | · | · | · | · | **passed** |
+
+✗ = that kind of check failed the solver (caught it) · = passed. Full report: [`results/stage2/bug_hunt_report.md`](results/stage2/bug_hunt_report.md).
+
+**Findings.**
+- **Mutation score 6/6**, and **no false positives**: the correct alternative passes all 24 tests.
+- **No single kind of check catches every bug.** The order test misses `euler_wrong_slope_time`: taking the slope at the next time is still a first-order method (its one-step error is (h²/2)(f_y·f − f_t), which is O(h²)), just not Euler's method. Only the known-answer and accuracy checks catch it.
+- **A known-answer test can be passed by a copied setting.** `euler_fixed_step` hard-codes h = 0.2, the textbook's own step, so it passes the textbook check and fails everything that uses other step counts.
+- **Exact `==` comparisons reject correct code.** With 10 steps on [0, 1.7], the alternative solver ends at 1.6999999999999998 instead of 1.7. The tests compare with `pytest.approx`, so both pass.
+
+---
+
 ## How to reproduce
 
 Requires Python 3.13. On Windows (PowerShell), from the project folder:
@@ -84,9 +122,19 @@ py -3.13 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
 python run_stage1.py
+python -m pytest
+python run_stage2_bug_hunt.py
 ```
 
-The script prints the table, saves `results/stage1/convergence_table.csv` and `results/stage1/convergence_plot.png`, and ends with `RESULT: ALL CHECKS PASSED` (exit code 0) or `SOME CHECKS FAILED` (exit code 1).
+- `run_stage1.py` prints the convergence table, saves `results/stage1/convergence_table.csv` and `convergence_plot.png`, and ends with `RESULT: ALL CHECKS PASSED`.
+- `python -m pytest` runs the 24 tests and should report `24 passed`.
+- `run_stage2_bug_hunt.py` runs the tests against every planted bug, saves `results/stage2/bug_hunt_report.md` and `bug_hunt.csv`, and ends with `RESULT: TESTS CATCH EVERY BUG AND PASS CORRECT CODE`.
+
+To test any single implementation, name it with the `--euler` or `--rk4` option:
+
+```powershell
+python -m pytest --rk4=bugs.buggy_solvers:rk4_swapped_weights
+```
 
 ## Project structure
 
@@ -96,12 +144,22 @@ simulation-verification-lab/
 │   ├── __init__.py          # marks the folder as a package
 │   ├── ode_solvers.py       # Euler, RK4 and verification helpers
 │   └── problems.py          # test problems with exact solutions
+├── tests/                   # the automatic test suite
+│   ├── conftest.py          # shared setup: --euler / --rk4 options, `method` fixture
+│   └── test_ode_solvers.py  # 24 tests, seven kinds of check
+├── bugs/                    # deliberately flawed solvers (never used for results)
+│   ├── __init__.py
+│   └── buggy_solvers.py     # 6 planted bugs + 1 correct alternative
 ├── results/
-│   └── stage1/              # table and plot produced by run_stage1.py
+│   ├── stage1/              # table and plot produced by run_stage1.py
+│   └── stage2/              # bug-hunt report produced by run_stage2_bug_hunt.py
 ├── evaluations/             # graded reviews of AI-style answers
 │   └── stage1_rk4_step_size_review.md
 ├── run_stage1.py            # Stage 1 convergence study with self-check
-├── STAGE1_GUIDE.md          # step-by-step guide, maths and Python explained
+├── run_stage2_bug_hunt.py   # Stage 2 mutation test of the test suite
+├── pytest.ini               # pytest settings
+├── STAGE1_GUIDE.md          # step-by-step guides: maths and Python explained
+├── STAGE2_GUIDE.md
 ├── PROGRESS.md              # dated progress log
 ├── requirements.txt         # pinned library versions
 └── .gitignore
@@ -109,4 +167,4 @@ simulation-verification-lab/
 
 ## Tools
 
-Python 3.13 · NumPy · Matplotlib · SciPy (from Stage 3) · pytest (from Stage 2)
+Python 3.13 · NumPy · Matplotlib · SciPy · pytest
